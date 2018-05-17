@@ -4,6 +4,13 @@
 #include <string.h>
 #include <windows.h>
 #include <dos.h>
+
+//Comentario prueba
+//Comentarcecrio prueba//Comentario prueba//Comentario prueba
+//Comentario prueba
+//Comentavwrio prervewwccueba
+//Comentario prueba
+//Comenterevario prueba
 //Comentario prueba
 
 
