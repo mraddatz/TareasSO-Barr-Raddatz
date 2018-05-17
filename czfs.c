@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <dos.h>
 
+<<<<<<< HEAD
 //Comentario prueba
 //Comentarcecrio prueba//Comentario prueba//Comentario prueba
 //Comentario prueba
@@ -14,6 +15,15 @@
 //Comentario prueba
 
 
+=======
+//prueba2
+//prueba2
+//prueba2
+//prueba2
+//prueba2
+//prueba2
+//prueba2
+>>>>>>> philip
 
 czFILE* cz\_open(char* filename, char mode){
 
