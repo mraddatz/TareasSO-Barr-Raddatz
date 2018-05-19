@@ -55,8 +55,6 @@ struct indirecto {
 	puntero punteros_directos[256];
 };
 
-program 1: czfs.c
-	gcc -o czfs czfs.c
 
 czFILE* cz_open(char* filename, char mode){
 	FILE *ptr;
@@ -64,11 +62,12 @@ czFILE* cz_open(char* filename, char mode){
 
 	if (read == mode) {
    		ptr = fopen(filename,"rb"); // r for read, b for binary		}
-	else{
+	}else{
 	 printf("%s\n", "doesnt match");}
 
 	printf("%c\n", read);
 	printf("%c\n", mode);
+}
 
 int cz_exists(char* filename){
 	return 0;
@@ -113,12 +112,15 @@ int main(int argc, char *argv[]) {
 	printf("size datos: %lu\n", sizeof(datos));
 	printf("size indirecto: %lu\n", sizeof(indirecto));
 
-
+	indice *prueba = (indice*) calloc(1, sizeof(indice));
+	int *num = (int*) calloc(1, sizeof(int));
+	printf("%d, %d --\n", *prueba->size, *num);
 	char a;
+
 	scanf("%c", &a);
 	printf("algo: %c\n", a);	
 	//printf("algo: %s\n", a=='rb');
 	scanf("%c", &a);
-	char nombre[] = "hola";
-	cz_open(&nombre, 'r');
+	char nombre[6] = {'H', 'e', 'l', 'l', 'o', '\0'};
+	cz_open(nombre, 'r');
 }
