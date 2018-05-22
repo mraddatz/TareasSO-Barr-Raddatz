@@ -4,7 +4,7 @@
 #include <string.h>
 #include "estructuras.c"
 
-char leer_validez( FILE *fp, int position){
+char leer_validez(FILE *fp, int position){
   unsigned char vality[1];
   //fseek recives file position and given offset and places fp to where we are looking (fp + offset)
   fseek(fp, position, SEEK_SET);
@@ -20,6 +20,8 @@ char* leer_nombre(FILE *fp, int position, int string_size){
   fread(string, 1, string_size, fp);
   return string;
 }
+
+directorio = 0;
 
 //Los punteros son siempre de tamaño 4
 int leer_puntero(FILE *fp, int position){
