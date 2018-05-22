@@ -77,6 +77,12 @@ unsigned char modifybitto1(unsigned char *byte, int n_bit)
     return *byte;
 }
 
+unsigned char modifybitto0(unsigned char *byte, int n_bit)
+{
+    *byte = *byte&(~1u<<n_bit);
+    return *byte;
+}
+
 czFILE* cz_open(char* filename, char mode){
 	const char read = 'r';
 	indice *indice_archivo = calloc(1, sizeof(indice));

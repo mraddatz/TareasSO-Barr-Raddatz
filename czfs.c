@@ -10,7 +10,6 @@ int main(int argc, char *argv[]) {
 	printf("size entrada_directorio: %lu\n", sizeof(entrada_directorio));
 	printf("size directorio: %lu\n", sizeof(directorio));
 	printf("size czfile: %lu\n", sizeof(czFILE));
-	printf("size bloque: %lu\n", sizeof(bloque));
 	printf("size bitmap: %lu\n", sizeof(bitmap));
 	printf("size indice: %lu\n", sizeof(indice));
 	printf("size datos: %lu\n", sizeof(datos));
