@@ -160,6 +160,12 @@ void cz_ls(){
 
 
 
+unsigned char modifybitto0(unsigned char *byte, int n_bit)
+{
+    *byte = *byte&(~1u<<n_bit);
+    return *byte;
+}
+
 czFILE* cz_open(char* filename, char mode){
 	const char read = 'r';
 	const char write = 'w';

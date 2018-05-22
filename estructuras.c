@@ -3,19 +3,36 @@
 #include <unistd.h>
 #include <string.h>
 
-typedef struct bloque bloque;
-struct bloque {
-	unsigned char block_size[1024];	
-};
-
 typedef int puntero;
 
+typedef struct datos datos;
+struct datos {
+	unsigned char data[1024];
+};
+
+typedef struct indirecto indirecto;
+struct indirecto {
+	puntero punteros_directos[256];
+	datos* ubicacion_datos[256];
+};
+
+typedef struct indice indice;
+struct indice {
+	unsigned int size;
+	unsigned int timestamp_creacion;
+	unsigned int timestamp_modificacion;
+	puntero ubicaciones_directos[252];
+	datos* punteros_datos[252];
+	puntero ubicacion_indirecto;
+	indirecto* puntero_indirecto;
+};
 
 typedef struct entrada_directorio entrada_directorio;
 struct entrada_directorio{
 	unsigned char valid;
-	char nombre_archivo[11]; //cambie a char* porque asi se puede asignar char[11] no es assignable
-	int ubicacion_indice;
+	char nombre_archivo[11];
+	puntero ubicacion_indice;
+	indice* puntero_indice;
 };
 
 typedef struct directorio directorio;
@@ -26,25 +43,6 @@ struct directorio {
 typedef struct bitmap bitmap;
 struct bitmap{
 	unsigned char bytearray[1024];	
-};
-
-typedef struct indice indice;
-struct indice {
-	unsigned int size;
-	unsigned int timestamp_creacion;
-	unsigned int timestamp_modificacion;
-	puntero punteros_directos[252];
-	puntero puntero_indirecto;
-};
-
-typedef struct datos datos;
-struct datos {
-	unsigned char data[1024];
-};
-
-typedef struct indirecto indirecto;
-struct indirecto {
-	puntero punteros_directos[256];
 };
 
 typedef struct czFILE czFILE;
