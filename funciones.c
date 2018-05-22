@@ -21,8 +21,6 @@ char* leer_nombre(FILE *fp, int position, int string_size){
   return string;
 }
 
-directorio = 0;
-
 //Los punteros son siempre de tamaño 4
 int leer_puntero(FILE *fp, int position){
 	unsigned int puntero[1];
@@ -54,22 +52,49 @@ unsigned char modifybitto1(unsigned char *byte, int n_bit)
     return *byte;
 }
 
-directorio *generar_directorio(char* filename){
-	directorio *directorio_generado = calloc(1, sizeof(directorio));
+directorio_estructura *generar_estructura_directorio(char* filename){
+	directorio_estructura *directorio_generado = calloc(1, sizeof(directorio_estructura));
 	FILE * fp;
 	fp=fopen(filename, "rb");
     fread(directorio_generado, sizeof(*directorio_generado), 1, fp);
     return directorio_generado;
 }
 
+indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
+	indice_estructura *indice_generado = calloc(1, sizeof(indice_estructura));
+	FILE * fp;
+	fp=fopen(filename, "rb");
+    fread(indice_generado, sizeof(*indice_generado), 1, fp);
+    return indice_generado;
+}
+
+directorio *inicializar(char* filename){
+	directorio *directorio_completo = calloc(1, sizeof(directorio));
+	FILE * fp;
+	fp=fopen(filename, "rb");
+    fread(&directorio_completo->estructura, 1024, 1, fp);
+	for (int i=0;i<8;i++){
+		fread(&(directorio_completo->bitmaps[i]), 1024, 1, fp);
+	}
+	for (int i=0;i<64;i++){
+		//if valid
+		fseek(fp, directorio_completo->estructura.entradas_directorio_estructura[i].ubicacion_indice * 1024, SEEK_SET);
+	    fread(&(directorio_completo->indices[i].estructura), sizeof(indice), 1, fp);
+		for(int n_bloque_datos=0; n_bloque_datos < 252; n_bloque_datos++){
+			//fseek coloca en 
+			fseek(fp, directorio_completo->indices[i].estructura.ubicaciones_directos[n_bloque_datos] * sizeof(indice_estructura), SEEK_SET);
+		    fread(&(directorio_completo->indices[i].datos[n_bloque_datos]), sizeof(datos), 1, fp);
+		}
+	}
+    return directorio_completo;
+}
 
 directorio *abrir_directorio(char* filename){
 	directorio *directorio_generado = calloc(1, sizeof(directorio));
 	FILE * fp;
 	fp = fopen(filename, "rb");
-	int i = 0;
 	int disk_byte_position=0;
-	for (i=0;i<64;i++){
+	for (int i=0;i<64;i++){
 		entrada_directorio* entrada=calloc(1,sizeof(entrada_directorio));
 		entrada->valid = leer_validez(fp, disk_byte_position);
 		disk_byte_position += 1;
