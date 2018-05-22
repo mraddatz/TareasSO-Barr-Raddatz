@@ -18,8 +18,9 @@ int main(int argc, char *argv[]) {
 	printf("size indirecto: %lu\n", sizeof(indirecto));
 
 	char a;
-	cz_open("", 'r');
-
-	scanf("%c", &a);
-	scanf("%c", &a);
+	cz_open("simdiskformat.bin", 'w');
+	printf("Done\n");
+	//scanf("%c", &a);
+	//scanf("%c", &a);
+	return 0;
 }

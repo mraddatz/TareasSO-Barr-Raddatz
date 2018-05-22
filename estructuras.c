@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <windows.h>
 
 typedef struct bloque bloque;
 struct bloque {
@@ -15,8 +14,8 @@ typedef int puntero;
 typedef struct entrada_directorio entrada_directorio;
 struct entrada_directorio{
 	unsigned char valid;
-	char nombre_archivo[11];
-	puntero ubicacion_indice;
+	char* nombre_archivo; //cambie a char* porque asi se puede asignar char[11] no es assignable
+	int ubicacion_indice;
 };
 
 typedef struct directorio directorio;
@@ -52,5 +51,7 @@ typedef struct czFILE czFILE;
 struct czFILE {
 	char mode;
 	int size;
+	puntero indice;
+	puntero dir_indirecto;
 	unsigned char *content;
 };
