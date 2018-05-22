@@ -14,7 +14,7 @@ typedef int puntero;
 typedef struct entrada_directorio entrada_directorio;
 struct entrada_directorio{
 	unsigned char valid;
-	char* nombre_archivo; //cambie a char* porque asi se puede asignar char[11] no es assignable
+	char nombre_archivo[11]; //cambie a char* porque asi se puede asignar char[11] no es assignable
 	int ubicacion_indice;
 };
 
@@ -53,5 +53,6 @@ struct czFILE {
 	int size;
 	puntero indice;
 	puntero dir_indirecto;
+
 	unsigned char *content;
 };

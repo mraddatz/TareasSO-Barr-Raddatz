@@ -65,20 +65,17 @@ directorio *abrir_directorio(char* filename){
 	directorio *directorio_generado = calloc(1, sizeof(directorio));
 	FILE * fp;
 	fp = fopen(filename, "rb");
-	printf("%i\n", fp);
 	int i = 0;
 	int disk_byte_position=0;
 	for (i=0;i<64;i++){
-		printf("FP %i es %i\n", i, fp);
 		entrada_directorio* entrada=calloc(1,sizeof(entrada_directorio));
 		entrada->valid = leer_validez(fp, disk_byte_position);
 		disk_byte_position += 1;
-		entrada->nombre_archivo = leer_nombre(fp, disk_byte_position, 11);
+		strcpy(entrada->nombre_archivo, leer_nombre(fp, disk_byte_position, 11));
 		disk_byte_position += 11;
 		entrada->ubicacion_indice = leer_puntero(fp, disk_byte_position);
 		disk_byte_position += 3;
 		directorio_generado->entradas_directorio[i] = *entrada;
-		printf("Entreda %i\n", i);
 	}
 
 	return directorio_generado;
@@ -92,9 +89,9 @@ int encontrar_bloque_disponible(FILE *fp){
 		read = leer_validez(fp, 1024);
 		showbits(read);
 	}
+	return 0;
 }
 
-unsigne
 
 int ingresar_entrada_directorio(directorio* dir, entrada_directorio entrada){
 	int i;
@@ -105,9 +102,10 @@ int ingresar_entrada_directorio(directorio* dir, entrada_directorio entrada){
 			return 0;
 		}
 		else{
-			printf("Entrada Ocupada\n");
+			printf("Entrada Ocupada con nombre: %s\n", dir->entradas_directorio[i].nombre_archivo);
 		}
 	}
+	return 0;
 }
 
 int cz_exists(char* filename){
@@ -221,7 +219,7 @@ czFILE* cz_open(char* filename, char mode){
 		int n_archivo = -1;
 		directorio* bloque_directorio;
 		bloque_directorio = abrir_directorio(filename);
-		bits_map = abrir_bitsmap(filename)
+		//bits_map = abrir_bitsmap(filename)
 		int i;
 		for(i=0; i<64; i++){
 			 entrada_directorio* entrada = &bloque_directorio->entradas_directorio[i];
@@ -230,20 +228,19 @@ czFILE* cz_open(char* filename, char mode){
 				return NULL;
 			}
 			else{
-				printf("no existe este nombre\n");
+				//printf("no existe este nombre\n");
 			}
 		}
 		FILE * fp;
 		fp=fopen(filename, "rb");
 		entrada_directorio nueva_entrada;
-		nueva_entrada.nombre_archivo = "texto.txt";
+		strcpy(nueva_entrada.nombre_archivo, "texto.txt");
 		nueva_entrada.valid = 1;
 		nueva_entrada.ubicacion_indice=100;
-		printf("%i\n", fp);
 		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
 		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
 		escribir_int(fp, 1026, 255);
-		encontrar_bloque_disponible(fp);
+		//encontrar_bloque_disponible(fp);
 
 
 		//iterar de 0 a 63 entreadas en directorio, and
