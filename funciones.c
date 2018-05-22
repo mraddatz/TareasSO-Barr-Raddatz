@@ -68,6 +68,8 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
     return indice_generado;
 }
 
+directorio *directorio_completo;
+
 directorio *inicializar(char* filename){
 	directorio *directorio_completo = calloc(1, sizeof(directorio));
 	FILE * fp;
@@ -89,59 +91,11 @@ directorio *inicializar(char* filename){
     return directorio_completo;
 }
 
-directorio *abrir_directorio(char* filename){
-	directorio *directorio_generado = calloc(1, sizeof(directorio));
-	FILE * fp;
-	fp = fopen(filename, "rb");
-	int disk_byte_position=0;
-	for (int i=0;i<64;i++){
-		entrada_directorio* entrada=calloc(1,sizeof(entrada_directorio));
-		entrada->valid = leer_validez(fp, disk_byte_position);
-		disk_byte_position += 1;
-		strcpy(entrada->nombre_archivo, leer_nombre(fp, disk_byte_position, 11));
-		disk_byte_position += 11;
-		entrada->ubicacion_indice = leer_puntero(fp, disk_byte_position);
-		disk_byte_position += 3;
-		directorio_generado->entradas_directorio[i] = *entrada;
-	}
-
-	return directorio_generado;
-}
-
-int encontrar_bloque_disponible(FILE *fp){
-	char* bits_map = calloc(8192, sizeof(unsigned char));
-	int i;
-	unsigned char read;
-	for (i=0; i<8192; i++){
-		read = leer_validez(fp, 1024);
-		showbits(read);
-	}
-	return 0;
-}
-
-
-int ingresar_entrada_directorio(directorio* dir, entrada_directorio entrada){
-	int i;
-	for (i=0; i<64; i++){
-		if (dir->entradas_directorio[i].valid == 0){
-			printf("Entrada vacia\n");
-			dir->entradas_directorio[i] = entrada;
-			return 0;
-		}
-		else{
-			printf("Entrada Ocupada con nombre: %s\n", dir->entradas_directorio[i].nombre_archivo);
-		}
-	}
-	return 0;
-}
-
 int cz_exists(char* filename){
-	directorio *directorio_disco = calloc(1, sizeof(directorio));
-	directorio_disco = generar_directorio("simdiskformat.bin");
-
 	int archivo_existe = -1;
-	for (int i=0; i < sizeof(directorio)/sizeof(entrada_directorio); i++){
-		if ((strcmp(directorio_disco->entradas_directorio[i].nombre_archivo, filename) == 0) & (directorio_disco->entradas_directorio[i].valid != 0)){
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
+			(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
 			archivo_existe = 1;
 		}
 	}
@@ -173,19 +127,7 @@ int cz_rm(char* filename){
 }
 
 void cz_ls(){
-	directorio *directorio_disco = calloc(1, sizeof(directorio));
-	directorio_disco = generar_directorio("simdiskformat.bin");
-
-	for (int i=0; i < sizeof(directorio)/sizeof(entrada_directorio); i++){
-		if (directorio_disco->entradas_directorio[i].valid != 0){
-			printf("nombre archivo %d: %s\n", i, directorio_disco->entradas_directorio[i].nombre_archivo);
-		}
-	}
 }
-
-
-
-
 
 unsigned char modifybitto0(unsigned char *byte, int n_bit)
 {
@@ -196,13 +138,9 @@ unsigned char modifybitto0(unsigned char *byte, int n_bit)
 czFILE* cz_open(char* filename, char mode){
 	const char read = 'r';
 	const char write = 'w';
-	indice *indice_archivo = calloc(1, sizeof(indice));
-
-	directorio *directorio_disco = calloc(1, sizeof(directorio));
-	directorio_disco = generar_directorio("simdiskformat.bin");
 
 
-	if (read == mode) {
+/*	if (read == mode) {
    		//ptr = fopen(filename,"rb"); // r for read, b for binary		}
 
 		int n_archivo = -1;
@@ -281,7 +219,7 @@ czFILE* cz_open(char* filename, char mode){
 
 
 	}
-	printf("Sale del write\n");
+*/	printf("Sale del write\n");
 	czFILE *hola = calloc(1, sizeof(czFILE));
 	return hola;
 }

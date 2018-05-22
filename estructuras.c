@@ -44,11 +44,6 @@ struct entrada_directorio_estructura{
 	puntero ubicacion_indice;
 };
 
-typedef struct entrada_directorio entrada_directorio;
-struct entrada_directorio{
-	indice indice;
-};
-
 typedef struct bitmap bitmap;
 struct bitmap{
 	unsigned char bytearray[1024];	
@@ -65,10 +60,6 @@ struct directorio {
 	indice indices[64];
 	bitmap bitmaps[8];
 };
-
-
-
-
 
 typedef struct czFILE czFILE;
 struct czFILE {
