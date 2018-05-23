@@ -27,7 +27,6 @@ int leer_puntero(FILE *fp, int position){
 	fseek(fp, position, SEEK_SET);
 	fread(puntero, 4, 1, fp); //Colocar 4 y 1 al revez
 	return puntero[0];
-
 }
 
 void escribir_int(FILE *fp, int pos, int numero){
@@ -70,6 +69,7 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
 
 directorio *directorio_completo;
 
+
 directorio *inicializar(char* filename){
 	directorio *directorio_completo = calloc(1, sizeof(directorio));
 	FILE * fp;
@@ -91,11 +91,13 @@ directorio *inicializar(char* filename){
     return directorio_completo;
 }
 
+
 int cz_exists(char* filename){
 	int archivo_existe = -1;
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
 			(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			printf(" %s, %d", (directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo), i);
 			archivo_existe = 1;
 		}
 	}
@@ -103,19 +105,41 @@ int cz_exists(char* filename){
 }
 
 int cz_read(czFILE* file_desc, void* buffer, int nbytes){
-	return 0;
+	printf("%d--\n", file_desc->indice->datos[(file_desc->ubicacion_rw / 1024)].data[file_desc->ubicacion_rw % 1024]);
+	memcpy(&buffer, &file_desc->indice->datos[(file_desc->ubicacion_rw / 1024)].data[file_desc->ubicacion_rw % 1024], nbytes);
+	if (nbytes <= file_desc->indice->estructura.size - (file_desc->ubicacion_rw)){
+		return nbytes;
+	}else{
+		return nbytes - (file_desc->indice->estructura.size - (file_desc->ubicacion_rw));
+	};
+	return file_desc->indice->estructura.size - (file_desc->ubicacion_rw);
 }
 
+//ver bloques
 int cz_write(czFILE* file_desc, void* buffer, int nbytes){
+	for (int i=0; i<nbytes; i++){
+		memcpy(&file_desc->indice->datos[(file_desc->indice->estructura.size) / 1024].data[(file_desc->indice->estructura.size) % 1024], &buffer, i);
+	}
 	return 0;
 }
 
-int cz_close(czFILE* file_desc){
-	return 0;
+void cz_ls(){
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if (directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0){
+			printf("%s\n", directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo);
+		}
+	}
 }
 
 int cz_mv(char* orig, char *dest){
-	return 0;
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, orig) == 0) & 
+		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			strcpy(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, dest);
+			return 0;
+		}
+	}
+	return -1;
 }
 
 int cz_cp(char* orig, char* dest){
@@ -123,11 +147,17 @@ int cz_cp(char* orig, char* dest){
 }
 
 int cz_rm(char* filename){
-	return 0;
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
+		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			unsigned char valid = 0;
+			memcpy(&directorio_completo->estructura.entradas_directorio_estructura[i].valid, &valid, 1);
+			return 0;
+		}
+	}
+	return -1;
 }
 
-void cz_ls(){
-}
 
 unsigned char modifybitto0(unsigned char *byte, int n_bit)
 {
@@ -139,6 +169,31 @@ czFILE* cz_open(char* filename, char mode){
 	const char read = 'r';
 	const char write = 'w';
 
+	if (read == mode) {
+   		//ptr = fopen(filename,"rb"); // r for read, b for binary		}
+
+		int n_archivo = -1;
+		//Encontramos el archivo dentro del directorio
+		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+			if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
+				(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+				n_archivo = i;
+			}
+		}
+		printf("numero archivo %s: %d\n", filename, n_archivo);
+		if (n_archivo == -1){
+			return NULL;
+		}
+
+		//rertornar czfile archivo indice
+		czFILE *ret = calloc(1, sizeof(czFILE));
+		ret->indice = &(directorio_completo->indices[n_archivo]);
+		return ret;
+
+	}
+	else if (write == mode){
+
+	}
 
 /*	if (read == mode) {
    		//ptr = fopen(filename,"rb"); // r for read, b for binary		}

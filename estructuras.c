@@ -64,9 +64,6 @@ struct directorio {
 typedef struct czFILE czFILE;
 struct czFILE {
 	char mode;
-	int size;
-	puntero indice;
-	puntero dir_indirecto;
-
-	unsigned char *content;
+	indice *indice;
+	int ubicacion_rw;
 };
