@@ -29,6 +29,14 @@ int leer_puntero(FILE *fp, int position){
 	return puntero[0];
 }
 
+
+char leer_char_disco( FILE *fp, int pos){
+  unsigned char buffer[1];
+  fseek(fp, pos, SEEK_SET);
+  fread(buffer, 1, 1, fp);
+  return buffer[0];
+  }
+
 void escribir_int(FILE *fp, int pos, int numero){
 unsigned int buffer[1];
   buffer[0]=numero;
@@ -51,8 +59,15 @@ unsigned char modifybitto1(unsigned char *byte, int n_bit)
     return *byte;
 }
 
-directorio_estructura *generar_estructura_directorio(char* filename){
-	directorio_estructura *directorio_generado = calloc(1, sizeof(directorio_estructura));
+
+unsigned char byte_de_1(unsigned char *byte, int n_bit)
+{
+    *byte = *byte|(1u<<n_bit);
+    return *byte;
+}
+
+directorio *generar_directorio(char* filename){
+	directorio *directorio_generado = calloc(1, sizeof(directorio));
 	FILE * fp;
 	fp=fopen(filename, "rb");
     fread(directorio_generado, sizeof(*directorio_generado), 1, fp);
@@ -67,7 +82,19 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
     return indice_generado;
 }
 
-directorio *directorio_completo;
+
+int encontrar_bloque_disponible(bitmap bit_map){
+	printf("Leyendo Bloque\n");
+	for (int i=0; i<1024; i++){
+		if(bit_map.bytearray[i]<255){
+			printf("Hay espacio\n");
+		}
+		else{
+			printf("No hay espacio\n");
+		}
+	}
+	return 0;
+}
 
 
 directorio *inicializar(char* filename){
@@ -258,15 +285,28 @@ czFILE* cz_open(char* filename, char mode){
 			}
 		}
 		FILE * fp;
-		fp=fopen(filename, "rb");
+		fp=fopen(filename, "r+b");
 		entrada_directorio nueva_entrada;
 		strcpy(nueva_entrada.nombre_archivo, "texto.txt");
 		nueva_entrada.valid = 1;
 		nueva_entrada.ubicacion_indice=100;
 		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
 		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
-		escribir_int(fp, 1026, 255);
-		//encontrar_bloque_disponible(fp);
+
+		bitmap *bit_map_block = calloc(1, sizeof(bitmap));
+		for (int i=0; i<1024; i++){
+			showbits(bit_map_block->bytearray[i]);
+		}
+		//for (int i=0; i<1024; i++){
+		//	bit_map_block->bytearray[i]= ~0u;
+		//}
+
+		//for (int i=0; i<1024; i++){
+		//	showbits(bit_map_block->bytearray[i]);
+		//}
+
+		encontrar_bloque_disponible(*bit_map_block);
+
 
 
 		//iterar de 0 a 63 entreadas en directorio, and
