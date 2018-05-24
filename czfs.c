@@ -24,17 +24,17 @@ int main(int argc, char *argv[]) {
 	czFILE *czfile = cz_open("texto.txt", 'r');
 //	printf("size archivo texto.txt: %d..%s\n", czfile->indice->estructura.size, czfile->indice->estructura.);
 	printf("%d\n", cz_read(czfile, buff, 3));
-	printf("%d)\n", *buff);
+	printf("Imprimiendo texto:\n" );
+	printf("%d\n", *buff);
 	//cz_mv("", "123");
 	cz_ls();
-	for (int i=0; i<1024; i++){
-		showbits(directorio_completo->bitmaps[0].bytearray[i]);
-	}
 
 
-	cz_open("simdiskformat.bin", 'w');
+	
+
+	cz_open("simdiskfilled.bin", 'w');
 	char a;
-	scanf("%c", &a);
+	//scanf("%c", &a);
 	//scanf("%c", &a);
 	return 0;
 }

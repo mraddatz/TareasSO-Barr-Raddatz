@@ -4,6 +4,48 @@
 #include <string.h>
 #include "estructuras.c"
 
+
+void showbits(unsigned char x){
+    int i; 
+    for(i=(sizeof(x)*8)-1; i>=0; i--)
+            (x&(1u<<i))?putchar('1'):putchar('0');
+    
+    printf("\n");
+}
+//Solo para byte
+int use_block(unsigned char* byte, int numero){
+	printf("Entered USe block\n");
+	if (numero>7) return -1;
+	int resto;
+	resto = *byte / 128;
+	if (numero == 0) *byte += 128;
+	if (numero == 1) *byte += 64;
+	if (numero == 2) *byte += 32;
+	if (numero == 3) *byte += 16;
+	if (numero == 4) *byte += 8;
+	if (numero == 5) *byte += 4;
+	if (numero == 6) *byte += 2;
+	if (numero == 7) *byte += 1;
+}
+
+//Solo para byte
+int release_block(unsigned char* byte, int numero){
+	if (numero>7) return -1;
+	int resto;
+	resto = *byte / 128;
+	if (numero == 0 && (*byte/128)) *byte -= 128;
+	if (numero == 1 ) *byte -= 64;
+	if (numero == 2) *byte -= 32;
+	if (numero == 3) *byte -= 16;
+	if (numero == 4) *byte -= 8;
+	if (numero == 5) *byte -= 4;
+	if (numero == 6) *byte -= 2;
+	if (numero == 7) *byte -= 1;
+}
+
+
+
+
 char leer_validez(FILE *fp, int position){
   unsigned char vality[1];
   //fseek recives file position and given offset and places fp to where we are looking (fp + offset)
@@ -12,6 +54,68 @@ char leer_validez(FILE *fp, int position){
   fread(vality, 1, 1, fp);
   return vality[0];
   }
+
+//Encuentra dentro de 1 bitmap
+int encontrar_bloque_disponible(bitmap* bit_map){
+	int bloque=0;
+	for (int byte=0; byte<1024; byte++){
+		if (bit_map->bytearray[byte]<255){
+			if (bit_map->bytearray[byte]<128) return bloque;
+			else if (bit_map->bytearray[byte]<192) return bloque + 1; 
+			else if (bit_map->bytearray[byte]<224) return bloque + 2;
+			else if (bit_map->bytearray[byte]<240) return bloque + 3;
+			else if (bit_map->bytearray[byte]<248) return bloque + 4;
+			else if (bit_map->bytearray[byte]<252) return bloque + 5;
+			else if (bit_map->bytearray[byte]<254) return bloque + 6;
+			else return bloque + 7;
+		}
+		else{
+			bloque += 8;
+		}
+	
+	}
+	return -1;
+}
+
+int utilizar_bloque(directorio* dir, int numero_bloque){
+	int bloque=0;
+	for (int bitmap_number=0; bitmap_number<8; bitmap_number++){
+		if (numero_bloque<8192*(bitmap_number+1)){
+			int bloque_en_bitmap = numero_bloque-(8192*bitmap_number);
+			for (int byte=0; byte<1024; byte++){
+				if (byte*8 < bloque_en_bitmap & byte*8+8 > bloque_en_bitmap){
+					int bloque_en_byte = bloque_en_bitmap%8;
+					printf("bitmap: %i  byte en bitmap: %i , bloque en byte: %i\n", bitmap_number, byte, bloque_en_byte);
+
+					int a = use_block(&dir->bitmaps[bitmap_number].bytearray[byte], bloque_en_byte);
+					return 1;
+				}
+			}
+
+		}
+	
+	}
+	return -1;
+}
+
+//Encuentra dentro de todos los bitmap
+int bloque_disponible(directorio* directorio_completo){
+	int bloque=0;
+	int result;
+	for(int i=0; i<8; i++){
+		result = encontrar_bloque_disponible(&directorio_completo->bitmaps[i]);
+		if (result>-1){
+			return bloque+result;
+		}
+		else{
+			bloque += 1024 * 8;
+		}
+
+	}
+	return -1;
+}
+
+
 
 //son de 11 bytes en caso de nombre archivo
 char* leer_nombre(FILE *fp, int position, int string_size){
@@ -37,13 +141,7 @@ unsigned int buffer[1];
 
 }
 
-void showbits(unsigned char x){
-    int i; 
-    for(i=(sizeof(x)*8)-1; i>=0; i--)
-            (x&(1u<<i))?putchar('1'):putchar('0');
-    
-    printf("\n");
-}
+
 
 unsigned char modifybitto1(unsigned char *byte, int n_bit)
 {
@@ -75,8 +173,10 @@ directorio *inicializar(char* filename){
 	FILE * fp;
 	fp=fopen(filename, "rb");
     fread(&directorio_completo->estructura, 1024, 1, fp);
+
 	for (int i=0;i<8;i++){
 		fread(&(directorio_completo->bitmaps[i]), 1024, 1, fp);
+		printf("FP: %i\n", fp);
 	}
 	for (int i=0;i<64;i++){
 		//if valid
@@ -192,7 +292,47 @@ czFILE* cz_open(char* filename, char mode){
 
 	}
 	else if (write == mode){
+		int n_archivo = -1;
 
+		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+			if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
+				(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+				n_archivo = i;
+			}
+		}
+		//si existe el archivo retorno null
+		if (n_archivo > -1){
+			return NULL;
+		}
+
+		//Buscamos primera entrada libre
+		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+			if (directorio_completo->estructura.entradas_directorio_estructura[i].valid == 0){
+				n_archivo = i;
+				break;
+			}
+		}
+
+
+		int bloque_libre = bloque_disponible(directorio_completo);
+		if (bloque_libre==-1){
+			return NULL;
+		}
+		printf("Vamos a crear la entrada\n");
+		//Creamos la entrada
+		entrada_directorio_estructura* entrada_dir = calloc(1, sizeof(entrada_directorio_estructura));
+		
+		entrada_dir->valid = 1;
+		//abort trap en este strcpy
+		strcpy(entrada_dir->nombre_archivo, filename);
+		entrada_dir->ubicacion_indice = bloque_libre;
+		directorio_completo->estructura.entradas_directorio_estructura[n_archivo] = *entrada_dir;
+		printf("Se creo la entrada\n");
+		utilizar_bloque(directorio_completo, bloque_libre); //Ucupamos el bloque en bitmap
+
+		czFILE *ret = calloc(1, sizeof(czFILE));
+		ret->indice = &(directorio_completo->indices[n_archivo]);
+		return ret;
 	}
 
 /*	if (read == mode) {
