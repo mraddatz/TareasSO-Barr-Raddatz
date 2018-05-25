@@ -20,20 +20,19 @@ int main(int argc, char *argv[]) {
 	printf("%d\n", cz_exists("texto.txt"));
 	printf("size archivo texto.txt: %d\n", directorio_completo->indices[1].estructura.size);
 	printf("%d\n", cz_exists("a"));
-	unsigned char buff[3];
+	char buff[20];
 	czFILE *czfile = cz_open("texto.txt", 'r');
 //	printf("size archivo texto.txt: %d..%s\n", czfile->indice->estructura.size, czfile->indice->estructura.);
-	printf("%d\n", cz_read(czfile, buff, 3));
-	printf("Imprimiendo texto:\n" );
-	printf("%d\n", *buff);
-	//cz_mv("", "123");
-	cz_ls();
+	printf(" Leyendo: %d\n", cz_read(czfile, buff, 3));
+	cz_rm("smile.png");
 
+	//cz_mv("", "123");
+	//cz_ls();
 
 	
 
-	cz_open("simdiskfilled.bin", 'w');
-	char a;
+	//cz_open("nuevo.txt", 'w');
+	//char a;
 	//scanf("%c", &a);
 	//scanf("%c", &a);
 	return 0;
