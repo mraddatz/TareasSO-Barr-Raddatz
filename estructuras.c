@@ -17,7 +17,7 @@ struct indirecto_estructura {
 
 typedef struct indirecto indirecto;
 struct indirecto {
-	indirecto_estructura estructura[256];
+	indirecto_estructura estructura; //le saque el [256], para que servia?
 	datos datos[256];
 };
 
@@ -41,7 +41,7 @@ typedef struct entrada_directorio_estructura entrada_directorio_estructura;
 struct entrada_directorio_estructura{
 	unsigned char valid;
 	char nombre_archivo[11];
-	puntero ubicacion_indice;
+	int ubicacion_indice;
 };
 
 typedef struct bitmap bitmap;
