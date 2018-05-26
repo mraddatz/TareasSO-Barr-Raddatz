@@ -438,38 +438,36 @@ int cz_cp(char* orig, char* dest){
 	if (strcmp(orig, dest) == 0){
 		return -1;
 	}
-	printf("PAso 1\n");
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, orig) == 0) & 
 		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			n_orig = i;
 		}
 		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, dest) == 0) & 
 		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
 			 dest_existe = 1;
 		}
-
 	}
-	if (n_orig>-1 || dest_existe == 1) return -1;
-	printf("PAso 2\n");
-
+	if (n_orig==-1 || dest_existe == 1) return -1;
 	//Buscamos primera entrada libre
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 		if (directorio_completo->estructura.entradas_directorio_estructura[i].valid == 0){
+			n_dest = i;
 			break;
 		}
 	}
 	int bloque_libre = bloque_disponible(directorio_completo);
+
 	if (bloque_libre==-1){
+			dest_existe = 1;
 			return -1;
 		}
 		if (sizeof(dest)>11){
 			return -1;
 		}
 	
-	printf("PAso 3\n");
-
 	//Creamos la entrada
-	entrada_directorio_estructura* entrada_dir = calloc(1, sizeof(entrada_directorio_estructura));
+	entrada_directorio_estructura* entrada_dir = &directorio_completo->estructura.entradas_directorio_estructura[n_dest];
 	entrada_dir->valid = 1;
 	for (int i=0; i<sizeof(dest); i++){
 		strcpy(&entrada_dir->nombre_archivo[i], &dest[i]);
@@ -477,37 +475,35 @@ int cz_cp(char* orig, char* dest){
 	entrada_dir->ubicacion_indice = bloque_libre;
 	utilizar_bloque(directorio_completo, bloque_libre); //Ocupamos el bloque en bitmap
 	//creamos el indice
-	indice* indice = calloc(1, sizeof(indice));
-	indice_estructura indice_e;
-	memcpy(&indice_e.size, &directorio_completo->indices[n_orig].estructura.size, 4);
-	indice_e.timestamp_creacion=(int)time(NULL);
-	indice_e.timestamp_modificacion=(int)time(NULL);
+	indice *indice = &directorio_completo->indices[n_dest];
+	indice_estructura *indice_e = &indice->estructura;
+	indice_e->timestamp_creacion=(int)time(NULL);
+	indice_e->timestamp_modificacion=(int)time(NULL);
 	//le asigno altiro un indirecto
-	int bloque_libre_indirecto = bloque_disponible(directorio_completo);
-	if (bloque_libre_indirecto==-1) return -1;
-	indice_e.ubicacion_indirecto = bloque_libre_indirecto;
-	indice->estructura=indice_e;
-	utilizar_bloque(directorio_completo, bloque_libre_indirecto); //Ocupamos el bloque indirecto libre
+	if (indice_e->size > 1024 * 252){
+		int bloque_libre_indirecto = bloque_disponible(directorio_completo);
+		if (bloque_libre_indirecto == -1) return -1;
+		indice_e->ubicacion_indirecto = bloque_libre_indirecto;
+		utilizar_bloque(directorio_completo, bloque_libre_indirecto); //Ocupamos el bloque indirecto libre
+	}
 
 	//Copiar
 	//Bloques a copiar
 	int cantidad_bloques_copiar = bloques_utilizados(&directorio_completo->indices[n_orig]);
-	int bloques_nuevos[cantidad_bloques_copiar];
-	for (int i=0; i<cantidad_bloques_copiar; i++){
-		bloques_nuevos[i] = bloque_disponible(directorio_completo);
-	}
-	if (bloques_nuevos[cantidad_bloques_copiar-1]==-1)return -1;
+	int bloque_nuevo;
 	//ahora copio data
 	for (int i =0; i<cantidad_bloques_copiar;i++){
+		bloque_nuevo = bloque_disponible(directorio_completo);
+		if (bloque_nuevo == -1) return -1;
 		if (i<252){
-			indice->estructura.ubicaciones_directos[i]=bloques_nuevos[i];
+			indice->estructura.ubicaciones_directos[i]=bloque_nuevo;
 			memcpy(indice->datos[i].data, directorio_completo->indices[n_orig].datos[i].data, 1024);
 		}
 		else{
-			indice->indirecto.estructura.ubicacion_directos[i-252]=bloques_nuevos[i];
+			indice->indirecto.estructura.ubicacion_directos[i-252] = bloque_nuevo;
 			memcpy(indice->indirecto.datos[i-252].data, directorio_completo->indices[n_orig].indirecto.datos[i-252].data, 1024);
 		}
-		utilizar_bloque(directorio_completo, bloques_nuevos[i]);
+		utilizar_bloque(directorio_completo, bloque_nuevo);
 	}
 	
 		
@@ -591,6 +587,7 @@ czFILE* cz_open(char* filename, char mode){
 		//rertornar czfilde archivo inice
 		czFILE *ret = calloc(1, sizeof(czFILE));
 		ret->indice = &(directorio_completo->indices[n_archivo]);
+		ret->mode = 'r';
 		return ret;
 
 	}
@@ -623,33 +620,31 @@ czFILE* cz_open(char* filename, char mode){
 			return NULL;
 		}
 
-
 		//Creamos la entrada
-		entrada_directorio_estructura* entrada_dir = calloc(1, sizeof(entrada_directorio_estructura));
+		entrada_directorio_estructura* entrada_dir = &directorio_completo->estructura.entradas_directorio_estructura[n_archivo];
 		entrada_dir->valid = 1;
 		for (int i=0; i<sizeof(filename); i++){
 			strcpy(&entrada_dir->nombre_archivo[i], &filename[i]);
-		}		
+		}
 		entrada_dir->ubicacion_indice = bloque_libre;
 		directorio_completo->estructura.entradas_directorio_estructura[n_archivo] = *entrada_dir;
 		utilizar_bloque(directorio_completo, bloque_libre); //Ocupamos el bloque en bitmap
 
 		//creamos el indice
-		indice* indice = calloc(1, sizeof(indice));
+		indice* indice = &directorio_completo->indices[n_archivo];
 		indice_estructura* indice_e;
+		indice_e = &indice->estructura;
 		int size = 0;
 		int time_creacion = (int)time(NULL);
 		int time_modificacion = (int)time(NULL);
-		indice_e->size=size;
-		indice_e->timestamp_creacion=time_creacion;
-		indice_e->timestamp_modificacion=time_modificacion;
-		indice->estructura=*indice_e;
-		directorio_completo->indices[n_archivo]=*indice;
+		indice_e->size = size;
+		indice_e->timestamp_creacion = time_creacion;
+		indice_e->timestamp_modificacion = time_modificacion;
 
 		//creamos el czfile
 		czFILE *ret = calloc(1, sizeof(czFILE));
 		ret->indice = &(directorio_completo->indices[n_archivo]);
-		ret->mode='r';
+		ret->mode='w';
 		return ret;
 	}
 		czFILE *ret = calloc(1, sizeof(czFILE));

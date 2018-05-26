@@ -20,8 +20,9 @@ int main(int argc, char *argv[]) {
 	printf("%d\n", cz_exists("texto.txt"));
 	printf("size archivo texto.txt: %d\n", directorio_completo->indices[1].estructura.size);
 	printf("%d\n", cz_exists("a"));
-	char buff[20];
+	char buff[20] = "12345678901234567890";
 	czFILE *czfile = cz_open("texto.txt", 'w');
+	cz_write(czfile, buff, 10);
 	printf(" Leyendo: %d\n", cz_read(czfile, buff, 3));
 
 
