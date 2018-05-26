@@ -6,6 +6,8 @@
 #include "estructuras.c"
 
 FILE* fp;
+directorio *directorio_completo;
+
 
 void showbits(unsigned char x){
     int i; 
@@ -107,32 +109,28 @@ int encontrar_bloque_disponible(bitmap* bit_map){
 	}
 
 int utilizar_bloque(directorio* dir, int numero_bloque){
-	int bloque=0;
 	for (int bitmap_number=0; bitmap_number<8; bitmap_number++){
 		if (numero_bloque<8192*(bitmap_number+1)){
 			int bloque_en_bitmap = numero_bloque-(8192*bitmap_number);
 			for (int byte=0; byte<1024; byte++){
-				if (byte*8 < bloque_en_bitmap & byte*8+8 > bloque_en_bitmap){
+				if ((byte*8 < bloque_en_bitmap) & (byte*8+8 > bloque_en_bitmap)){
 					int bloque_en_byte = bloque_en_bitmap%8;
 					printf("bitmap: %i  byte en bitmap: %i , bloque en byte: %i\n", bitmap_number, byte, bloque_en_byte);
-
 					use_block(&dir->bitmaps[bitmap_number].bytearray[byte], bloque_en_byte);
 					return 1;
 				}
 			}
-
 		}
-	
 	}
 	return -1;
-	}
+}
 
 void liberar_bloque(directorio* dir, int numero_bloque){
 	for (int bitmap_number=0; bitmap_number<8; bitmap_number++){
 		if (numero_bloque<8192*(bitmap_number+1)){ //identificamos bitmap
 			int bloque_en_bitmap = numero_bloque-(8192*bitmap_number);
 			for (int byte=0; byte<1024; byte++){
-				if (byte*8 <= bloque_en_bitmap & byte*8+8 > bloque_en_bitmap){ //identificamos byte en bitmap
+				if ((byte*8 <= bloque_en_bitmap) & (byte*8+8 > bloque_en_bitmap)){ //identificamos byte en bitmap
 					int bloque_en_byte = bloque_en_bitmap%8;
 					release_block(&dir->bitmaps[bitmap_number].bytearray[byte], bloque_en_byte);
 					showbits(dir->bitmaps[bitmap_number].bytearray[byte]);
@@ -158,6 +156,7 @@ int bloque_disponible(directorio* directorio_completo){
 	}
 	return -1;
 	}
+
 void print_bitsmap(bitmap* bit){
 	for (int i=0; i<1024; i++){
 		showbits(bit->bytearray[i]);
@@ -218,7 +217,6 @@ void escribir_string_disco( FILE *fp, int pos, char* str, int size_of_str){
 
 void guardar_todo(FILE* fp, directorio* dir){
 	int pos=0;
-	printf("Entro a guardar todo con fp: %d\n", fp);
 	for (int i=0; i<64; i++){
 		
 		escribir_char_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].valid);
@@ -232,7 +230,6 @@ void guardar_todo(FILE* fp, directorio* dir){
 
 void borrar_todo(FILE* fp, directorio* dir){
 	int pos=0;
-	printf("Entro a borrar todo con fp: %d\n", fp);
 	for (int i=0; i<64; i++){
 		
 		int cero = 0;
@@ -278,25 +275,9 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
 	}
 
 
-int encontrar_bloque_disponible(bitmap bit_map){
-	printf("Leyendo Bloque\n");
-	for (int i=0; i<1024; i++){
-		if(bit_map.bytearray[i]<255){
-			printf("Hay espacio\n");
-		}
-		else{
-			printf("No hay espacio\n");
-		}
-	}
-	return 0;
-}
-
-
-
 directorio *inicializar(char* filename){
 	directorio *directorio_completo = calloc(1, sizeof(directorio));
 	fp=fopen(filename, "rb+");
-	printf("Primer fp: %d\n", fp);
 
     fread(&directorio_completo->estructura, 1024, 1, fp);
     for (int i=0; i<64; i++){
@@ -383,18 +364,50 @@ int cz_read(czFILE* file_desc, void* buffer, int nbytes){
 	}
 
 //ver bloques
-int cz_write(czFILE* file_desc, void* buffer, int nbytes){
-	
-
-	
+int cz_write(czFILE* file_desc, void* buffer, int nbytes){	
 	int bytes_restantes = nbytes;
-	if (bytes_restantes>0){
-		//busco_bloque_disponible
-
-	} 
-	for (int i=0; i<nbytes; i++){
-		memcpy(&file_desc->indice->datos[(file_desc->indice->estructura.size) / 1024].data[(file_desc->indice->estructura.size) % 1024], buffer, i);
+	int bytes_escritos = 0;
+	int posicion_escritura_actual = file_desc->indice->estructura.size;
+	while (bytes_restantes > 0){
+		if (bytes_restantes > 1024 - posicion_escritura_actual % 1024){
+			memcpy(&file_desc->indice->datos[(posicion_escritura_actual) / 1024].data[(posicion_escritura_actual) % 1024], buffer + bytes_escritos, 1024 - posicion_escritura_actual % 1024);
+			bytes_escritos += 1024 - file_desc->indice->estructura.size % 1024;
+			posicion_escritura_actual += 1024 - file_desc->indice->estructura.size % 1024;
+			bytes_restantes -= 1024 - file_desc->indice->estructura.size % 1024;	
+		}else{
+			memcpy(&file_desc->indice->datos[(posicion_escritura_actual) / 1024].data[(posicion_escritura_actual) % 1024], buffer + bytes_escritos, nbytes);
+			return nbytes;
+		}
+		//asigno nuevo bloque
+		if (posicion_escritura_actual/ 1024 == 0){
+			int nuevo_bloque = bloque_disponible(directorio_completo);
+			if (nuevo_bloque == -1){
+				return bytes_escritos;
+			}
+			utilizar_bloque(directorio_completo, nuevo_bloque);
+			// si estoy en los directos
+			if (posicion_escritura_actual < 252 * 1024){
+				file_desc->indice->estructura.ubicaciones_directos[posicion_escritura_actual / 1024] = nuevo_bloque;
+			}else{
+				//si es mi primer indirecto
+				if (posicion_escritura_actual == 252 * 1024){
+					int bloque_indirecto =bloque_disponible(directorio_completo);
+					//si no hay espacio para asignar un indirecto
+					if (bloque_indirecto == -1){
+						file_desc->indice->estructura.ubicacion_indirecto = nuevo_bloque;
+						return bytes_escritos;
+					}
+					utilizar_bloque(directorio_completo, bloque_indirecto);
+					file_desc->indice->estructura.ubicacion_indirecto = bloque_indirecto;
+					file_desc->indice->indirecto.estructura.ubicacion_directos[0] = nuevo_bloque;
+				}else{
+					file_desc->indice->indirecto.estructura.ubicacion_directos[(posicion_escritura_actual - 252 * 1024) / 1024] = nuevo_bloque;
+				}
+			}
+		}
 	}
+
+
 	return 0;
 	}
 
@@ -573,98 +586,3 @@ int cz_close(czFILE* file_desc){
 	return 0;
 }
 
-/*	if (read == mode) {
-   		//ptr = fopen(filename,"rb"); // r for read, b for binary		}
-
-		int n_archivo = -1;
-		//Encontramos el archivo dentro del directorio
-		for (int i=0; i < sizeof(directorio)/sizeof(entrada_directorio); i++){
-			if (strcmp(directorio_disco->entradas_directorio[i].nombre_archivo, filename) == 0){
-				//agregar if validez
-				n_archivo = i;
-			}
-		}
-		if (n_archivo == -1){
-			return NULL;
-		}
-
-		//abrir el archivo indice
-		FILE * :;
-		fp=fopen("simdiskformat.bin", "rb");
-	    fseek(fp, directorio_disco->entradas_directorio[n_archivo].ubicacion_indice, SEEK_SET);
-	    fread(indice_archivo, sizeof(indice), 1, fp);
-	    datos *bloque_datos = calloc(1, sizeof(datos));
-
-	    //copiar la información del archivo a ret, el cual es un czfile.
-		czFILE *ret = calloc(1, sizeof(czFILE));
-		ret->mode = mode;
-		//+2 para probar aunque el disco esté vacio
-		ret->size = indice_archivo->size + 2;
-		ret->content = calloc(ret->size, sizeof(char));
-		for(int n_bloque_datos=0; n_bloque_datos < 252; n_bloque_datos++){
-			//fseek coloca en 
-			fseek(fp, indice_archivo->punteros_directos[n_bloque_datos], SEEK_SET);
-		    fread(bloque_datos->data, sizeof(datos), 1, fp);
-			for (int n_linea_bloque=0; n_linea_bloque < 1024; n_linea_bloque++){
-				if (n_bloque_datos*1024 + n_linea_bloque < indice_archivo->size + 2){
-					ret->content[n_bloque_datos*1024 + n_linea_bloque] = bloque_datos->data[n_linea_bloque];
-				}
-			}
-		}
-
-		//mostrar información
-		for(int byte_n=0; byte_n < indice_archivo->size + 2; byte_n++){
-			showbits(ret->content[byte_n]);
-		}
-		return ret;
-	}
-	else if (write == mode){
-		printf("Entro a write con nombre %s\n", filename);
-		int n_archivo = -1;
-		directorio* bloque_directorio;
-		bloque_directorio = abrir_directorio(filename);
-		//bits_map = abrir_bitsmap(filename)
-		int i;
-		for(i=0; i<64; i++){
-			 entrada_directorio* entrada = &bloque_directorio->entradas_directorio[i];
-			if(strcmp(entrada->nombre_archivo, filename)==0 && entrada->valid){
-				printf("%s\n", "Existe este nombre");
-				return NULL;
-			}
-			else{
-				//printf("no existe este nombre\n");
-			}
-		}
-		FILE * fp;
-		fp=fopen(filename, "r+b");
-		entrada_directorio nueva_entrada;
-		strcpy(nueva_entrada.nombre_archivo, "texto.txt");
-		nueva_entrada.valid = 1;
-		nueva_entrada.ubicacion_indice=100;
-		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
-		ingresar_entrada_directorio(bloque_directorio, nueva_entrada);
-
-		bitmap *bit_map_block = calloc(1, sizeof(bitmap));
-		for (int i=0; i<1024; i++){
-			showbits(bit_map_block->bytearray[i]);
-		}
-		//for (int i=0; i<1024; i++){
-		//	bit_map_block->bytearray[i]= ~0u;
-		//}
-
-		//for (int i=0; i<1024; i++){
-		//	showbits(bit_map_block->bytearray[i]);
-		//}
-
-		encontrar_bloque_disponible(*bit_map_block);
-
-
-
-		//iterar de 0 a 63 entreadas en directorio, and
-
-
-
-	}
-
-}
-*/

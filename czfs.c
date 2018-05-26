@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
 	printf("%d\n", cz_exists("a"));
 	char buff[20];
 	czFILE *czfile = cz_open("texto.txt", 'w');
-//	printf("size archivo texto.txt: %d..%s\n", czfile->indice->estructura.size, czfile->indice->estructura.);
 	printf(" Leyendo: %d\n", cz_read(czfile, buff, 3));
 
 	cz_rm("smile.png");
@@ -33,8 +32,8 @@ int main(int argc, char *argv[]) {
 	
 
 	//cz_open("nuevo.txt", 'w');
-	//char a;
-	//scanf("%c", &a);
+	char a;
+	scanf("%c", &a);
 	//scanf("%c", &a);
 	return 0;
 }
