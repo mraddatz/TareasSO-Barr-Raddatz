@@ -24,11 +24,12 @@ int main(int argc, char *argv[]) {
 	czFILE *czfile = cz_open("texto.txt", 'w');
 	printf(" Leyendo: %d\n", cz_read(czfile, buff, 3));
 
-	cz_rm("smile.png");
+
+	//cz_rm("smile.png");
 	//cz_close(czfile);
 	//cz_mv("", "123");
 	//cz_ls();
-
+	cz_cp("texto.txt", "copy.txt");
 	
 
 	//cz_open("nuevo.txt", 'w');
