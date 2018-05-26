@@ -66,4 +66,5 @@ struct czFILE {
 	char mode;
 	indice *indice;
 	int ubicacion_rw;
+	char* filename;
 };
