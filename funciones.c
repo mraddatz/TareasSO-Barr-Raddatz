@@ -5,6 +5,7 @@
 #include <time.h>
 #include "estructuras.c"
 
+FILE* fp;
 
 void showbits(unsigned char x){
     int i; 
@@ -24,11 +25,6 @@ void use_block(unsigned char* byte, int numero){
 	if (numero == 5) *byte += 4;
 	if (numero == 6) *byte += 2;
 	if (numero == 7) *byte += 1;
-}
-
-
-int convertor(int numero){
-	return 0;
 }
 
 int isBigEndian() {
@@ -65,6 +61,8 @@ int packInt(char toBigEndian, int x){
     return myInt;
 }
 
+
+
 //Solo para byte
 void release_block(unsigned char* byte, int numero){
 	if (numero == 0 ) *byte -= 128;
@@ -76,9 +74,6 @@ void release_block(unsigned char* byte, int numero){
 	if (numero == 6) *byte -= 2;
 	if (numero == 7) *byte -= 1;
 }
-
-
-
 
 char leer_validez(FILE *fp, int position){
   unsigned char vality[1];
@@ -109,7 +104,7 @@ int encontrar_bloque_disponible(bitmap* bit_map){
 	
 	}
 	return -1;
-}
+	}
 
 int utilizar_bloque(directorio* dir, int numero_bloque){
 	int bloque=0;
@@ -130,14 +125,14 @@ int utilizar_bloque(directorio* dir, int numero_bloque){
 	
 	}
 	return -1;
-}
+	}
 
 void liberar_bloque(directorio* dir, int numero_bloque){
 	for (int bitmap_number=0; bitmap_number<8; bitmap_number++){
 		if (numero_bloque<8192*(bitmap_number+1)){ //identificamos bitmap
 			int bloque_en_bitmap = numero_bloque-(8192*bitmap_number);
 			for (int byte=0; byte<1024; byte++){
-				if (byte*8 < bloque_en_bitmap & byte*8+8 > bloque_en_bitmap){ //identificamos byte en bitmap
+				if (byte*8 <= bloque_en_bitmap & byte*8+8 > bloque_en_bitmap){ //identificamos byte en bitmap
 					int bloque_en_byte = bloque_en_bitmap%8;
 					release_block(&dir->bitmaps[bitmap_number].bytearray[byte], bloque_en_byte);
 					showbits(dir->bitmaps[bitmap_number].bytearray[byte]);
@@ -145,7 +140,7 @@ void liberar_bloque(directorio* dir, int numero_bloque){
 			}
 		}
 	}
-}
+	}
 
 //Encuentra dentro de todos los bitmap
 int bloque_disponible(directorio* directorio_completo){
@@ -162,12 +157,12 @@ int bloque_disponible(directorio* directorio_completo){
 
 	}
 	return -1;
-}
+	}
 void print_bitsmap(bitmap* bit){
 	for (int i=0; i<1024; i++){
 		showbits(bit->bytearray[i]);
-}
-}
+	}
+	}
 
 //Entrego indice y me dice cuantos bloques utiliza
 int bloques_utilizados(indice* indice){
@@ -179,7 +174,7 @@ int bloques_utilizados(indice* indice){
 	}
 
 	return bloques_enteros + bloques_incompletos;
-}
+	}
 
 
 //son de 11 bytes en caso de nombre archivo
@@ -188,7 +183,7 @@ char* leer_nombre(FILE *fp, int position, int string_size){
   fseek(fp, position, SEEK_SET);
   fread(string, 1, string_size, fp);
   return string;
-}
+	}
 
 //Los punteros son siempre de tamaño 4
 int leer_puntero(FILE *fp, int position){
@@ -196,31 +191,68 @@ int leer_puntero(FILE *fp, int position){
 	fseek(fp, position, SEEK_SET);
 	fread(puntero, 4, 1, fp); //Colocar 4 y 1 al revez
 	return puntero[0];
-}
+	}
 
 
-char leer_char_disco( FILE *fp, int pos){
-  unsigned char buffer[1];
+void escribir_int_disco( FILE *fp, int pos, int numero){
+	unsigned char buffer[4];
+  buffer[0]=numero>>24;
+  buffer[1]=numero>>16;
+  buffer[2]=numero>>8;
+  buffer[3]=numero;
   fseek(fp, pos, SEEK_SET);
-  fread(buffer, 1, 1, fp);
-  return buffer[0];
+  fwrite(&buffer,1,4,fp);
+	}
+
+void escribir_char_disco( FILE *fp, int pos, char caracter){
+  unsigned char buffer[1];
+    buffer[0]=caracter;
+    fseek(fp, pos, SEEK_SET);
+    fwrite(buffer,1,1,fp);
   }
 
-void escribir_int(FILE *fp, int pos, int numero){
-unsigned int buffer[1];
-  buffer[0]=numero;
-  fseek(fp, pos, SEEK_SET);
-  fwrite(buffer,4,1,fp);
+void escribir_string_disco( FILE *fp, int pos, char* str, int size_of_str){
+      fseek(fp, pos, SEEK_SET);
+      fwrite(str,1,size_of_str,fp);
+	}
 
-}
+void guardar_todo(FILE* fp, directorio* dir){
+	int pos=0;
+	printf("Entro a guardar todo con fp: %d\n", fp);
+	for (int i=0; i<64; i++){
+		
+		escribir_char_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].valid);
+		pos += 1;
+		escribir_string_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].nombre_archivo, 11);
+		pos += 11;
+		escribir_int_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].ubicacion_indice);
+		pos += 4;
+	}
+	}
+
+void borrar_todo(FILE* fp, directorio* dir){
+	int pos=0;
+	printf("Entro a borrar todo con fp: %d\n", fp);
+	for (int i=0; i<64; i++){
+		
+		int cero = 0;
+		escribir_int_disco(fp, pos, cero);
+		pos += 4;
+		escribir_int_disco(fp, pos, cero);
+		pos += 4;
+		escribir_int_disco(fp, pos, cero);
+		pos += 4;
+		escribir_int_disco(fp, pos, cero);
+		pos += 4;
+
+	}
+	}
 
 
-
-unsigned char modifybitto1(unsigned char *byte, int n_bit)
-{
+unsigned char modifybitto1(unsigned char *byte, int n_bit){
     *byte = *byte|(1u<<n_bit);
     return *byte;
-}
+	}
 
 
 unsigned char byte_de_1(unsigned char *byte, int n_bit)
@@ -235,7 +267,7 @@ directorio *generar_directorio(char* filename){
 	fp=fopen(filename, "rb");
     fread(directorio_generado, sizeof(*directorio_generado), 1, fp);
     return directorio_generado;
-}
+	}
 
 indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
 	indice_estructura *indice_generado = calloc(1, sizeof(indice_estructura));
@@ -243,7 +275,7 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
 	fp=fopen(filename, "rb");
     fread(indice_generado, sizeof(*indice_generado), 1, fp);
     return indice_generado;
-}
+	}
 
 
 int encontrar_bloque_disponible(bitmap bit_map){
@@ -260,10 +292,12 @@ int encontrar_bloque_disponible(bitmap bit_map){
 }
 
 
+
 directorio *inicializar(char* filename){
 	directorio *directorio_completo = calloc(1, sizeof(directorio));
-	FILE * fp;
-	fp=fopen(filename, "rb");
+	fp=fopen(filename, "rb+");
+	printf("Primer fp: %d\n", fp);
+
     fread(&directorio_completo->estructura, 1024, 1, fp);
     for (int i=0; i<64; i++){
     	directorio_completo->estructura.entradas_directorio_estructura[i].ubicacion_indice = packInt(1, directorio_completo->estructura.entradas_directorio_estructura[i].ubicacion_indice);
@@ -323,8 +357,7 @@ directorio *inicializar(char* filename){
 		}
 	}
     return directorio_completo;
-}
-
+	}
 
 int cz_exists(char* filename){
 	int archivo_existe = -1;
@@ -336,7 +369,7 @@ int cz_exists(char* filename){
 		}
 	}
 	return archivo_existe;
-}
+	}
 
 int cz_read(czFILE* file_desc, void* buffer, int nbytes){
 	printf("%d--\n", file_desc->indice->datos[(file_desc->ubicacion_rw / 1024)].data[file_desc->ubicacion_rw % 1024]);
@@ -347,7 +380,7 @@ int cz_read(czFILE* file_desc, void* buffer, int nbytes){
 		return nbytes - (file_desc->indice->estructura.size - (file_desc->ubicacion_rw));
 	};
 	return file_desc->indice->estructura.size - (file_desc->ubicacion_rw);
-}
+	}
 
 //ver bloques
 int cz_write(czFILE* file_desc, void* buffer, int nbytes){
@@ -363,7 +396,7 @@ int cz_write(czFILE* file_desc, void* buffer, int nbytes){
 		memcpy(&file_desc->indice->datos[(file_desc->indice->estructura.size) / 1024].data[(file_desc->indice->estructura.size) % 1024], buffer, i);
 	}
 	return 0;
-}
+	}
 
 void cz_ls(){
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
@@ -371,7 +404,7 @@ void cz_ls(){
 			printf("%s\n", directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo);
 		}
 	}
-}
+	}
 
 int cz_mv(char* orig, char *dest){
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
@@ -382,11 +415,11 @@ int cz_mv(char* orig, char *dest){
 		}
 	}
 	return -1;
-}
+	}
 
 int cz_cp(char* orig, char* dest){
 	return 0;
-}
+	}
 
 int cz_rm(char* filename){
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
@@ -422,6 +455,7 @@ int cz_rm(char* filename){
 			//validez de la entrada a 0
 
 			directorio_completo->estructura.entradas_directorio_estructura[n_archivo].valid = 0;
+			directorio_completo->estructura.entradas_directorio_estructura[n_archivo].ubicacion_indice = 0;
 
 
 
@@ -435,14 +469,13 @@ int cz_rm(char* filename){
 		}
 	}
 	return -1;
-}
+	}
 
 
-unsigned char modifybitto0(unsigned char *byte, int n_bit)
-{
+unsigned char modifybitto0(unsigned char *byte, int n_bit){
     *byte = *byte&(~1u<<n_bit);
     return *byte;
-}
+	}
 
 czFILE* cz_open(char* filename, char mode){
 	const char read = 'r';
@@ -472,7 +505,7 @@ czFILE* cz_open(char* filename, char mode){
 	}
 	else if (write == mode){
 		int n_archivo = -1;
-
+		printf("paso 1\n");
 		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 			if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
 				(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
@@ -483,7 +516,7 @@ czFILE* cz_open(char* filename, char mode){
 		if (n_archivo > -1){
 			return NULL;
 		}
-
+		printf("paso 2\n");
 		//Buscamos primera entrada libre
 		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 			if (directorio_completo->estructura.entradas_directorio_estructura[i].valid == 0){
@@ -500,6 +533,7 @@ czFILE* cz_open(char* filename, char mode){
 		if (sizeof(filename)>11){
 			return NULL;
 		}
+		printf("paso 3\n");
 
 
 		//Creamos la entrada
@@ -530,6 +564,14 @@ czFILE* cz_open(char* filename, char mode){
 		ret->mode='r';
 		return ret;
 	}
+		czFILE *ret = calloc(1, sizeof(czFILE));
+		return ret;
+	}
+
+int cz_close(czFILE* file_desc){
+	borrar_todo(fp, directorio_completo);
+	return 0;
+}
 
 /*	if (read == mode) {
    		//ptr = fopen(filename,"rb"); // r for read, b for binary		}
@@ -623,7 +665,6 @@ czFILE* cz_open(char* filename, char mode){
 
 
 	}
-*/	printf("Sale del write\n");
-	czFILE *hola = calloc(1, sizeof(czFILE));
-	return hola;
+
 }
+*/
