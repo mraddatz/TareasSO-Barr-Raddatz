@@ -6,6 +6,7 @@
 #include "estructuras.c"
 
 FILE* fp;
+directorio* directorio_completo;
 
 void showbits(unsigned char x){
     int i; 
@@ -218,7 +219,6 @@ void escribir_string_disco( FILE *fp, int pos, char* str, int size_of_str){
 
 void guardar_todo(FILE* fp, directorio* dir){
 	int pos=0;
-	printf("Entro a guardar todo con fp: %d\n", fp);
 	for (int i=0; i<64; i++){
 		
 		escribir_char_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].valid);
@@ -232,7 +232,6 @@ void guardar_todo(FILE* fp, directorio* dir){
 
 void borrar_todo(FILE* fp, directorio* dir){
 	int pos=0;
-	printf("Entro a borrar todo con fp: %d\n", fp);
 	for (int i=0; i<64; i++){
 		
 		int cero = 0;
@@ -273,30 +272,15 @@ indice_estructura *generar_estructura_indice(char* filename, int ubicacion){
 	indice_estructura *indice_generado = calloc(1, sizeof(indice_estructura));
 	FILE * fp;
 	fp=fopen(filename, "rb");
-    fread(indice_generado, sizeof(*indice_generado), 1, fp);
-    return indice_generado;
+	fread(indice_generado, sizeof(*indice_generado), 1, fp);
+	return indice_generado;
 	}
-
-
-int encontrar_bloque_disponible(bitmap bit_map){
-	printf("Leyendo Bloque\n");
-	for (int i=0; i<1024; i++){
-		if(bit_map.bytearray[i]<255){
-			printf("Hay espacio\n");
-		}
-		else{
-			printf("No hay espacio\n");
-		}
-	}
-	return 0;
-}
 
 
 
 directorio *inicializar(char* filename){
 	directorio *directorio_completo = calloc(1, sizeof(directorio));
 	fp=fopen(filename, "rb+");
-	printf("Primer fp: %d\n", fp);
 
     fread(&directorio_completo->estructura, 1024, 1, fp);
     for (int i=0; i<64; i++){
@@ -417,9 +401,103 @@ int cz_mv(char* orig, char *dest){
 	return -1;
 	}
 
+
+//Si no alcanza el espacio se copia hasta donde se pueda
 int cz_cp(char* orig, char* dest){
+	int dest_existe = 0;
+	int n_orig = -1;
+	int n_dest = -1;
+	if (strcmp(orig, dest) == 0){
+		return -1;
+	}
+	printf("PAso 1\n");
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, orig) == 0) & 
+		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			int n_orig = i;
+		}
+		if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, dest) == 0) & 
+		(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
+			 dest_existe = 1;
+		}
+
+	}
+	if (n_orig>-1 || dest_existe == 1) return -1;
+	printf("PAso 2\n");
+
+	//Buscamos primera entrada libre
+	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
+		if (directorio_completo->estructura.entradas_directorio_estructura[i].valid == 0){
+			int n_dest = i;
+			break;
+		}
+	}
+	int bloque_libre = bloque_disponible(directorio_completo);
+	if (bloque_libre==-1){
+			return -1;
+		}
+		if (sizeof(dest)>11){
+			return -1;
+		}
+	
+	printf("PAso 3\n");
+
+	//Creamos la entrada
+	entrada_directorio_estructura* entrada_dir = calloc(1, sizeof(entrada_directorio_estructura));
+	entrada_dir->valid = 1;
+	for (int i=0; i<sizeof(dest); i++){
+		strcpy(&entrada_dir->nombre_archivo[i], &dest[i]);
+	}		
+	entrada_dir->ubicacion_indice = bloque_libre;
+	utilizar_bloque(directorio_completo, bloque_libre); //Ocupamos el bloque en bitmap
+	//creamos el indice
+	indice* indice = calloc(1, sizeof(indice));
+	indice_estructura indice_e;
+	int time_creacion = (int)time(NULL);
+	int time_modificacion = (int)time(NULL);
+	memcpy(&indice_e.size, &directorio_completo->indices[n_orig].estructura.size, 4);
+	indice_e.timestamp_creacion=(int)time(NULL);
+	indice_e.timestamp_modificacion=(int)time(NULL);
+	//le asigno altiro un indirecto
+	int bloque_libre_indirecto = bloque_disponible(directorio_completo);
+	if (bloque_libre_indirecto==-1) return -1;
+	indice_e.ubicacion_indirecto = bloque_libre_indirecto;
+	indirecto* indice_indirecto = calloc(1, sizeof(indirecto));
+	indice->estructura=indice_e;
+	utilizar_bloque(directorio_completo, bloque_libre_indirecto); //Ocupamos el bloque indirecto libre
+
+	//Copiar
+	//Bloques a copiar
+	int cantidad_bloques_copiar = bloques_utilizados(&directorio_completo->indices[n_orig]);
+	int bloques_nuevos[cantidad_bloques_copiar];
+	for (int i=0; i<cantidad_bloques_copiar; i++){
+		bloques_nuevos[i] = bloque_disponible(directorio_completo);
+	}
+	if (bloques_nuevos[cantidad_bloques_copiar-1]==-1)return -1;
+	//ahora copio data
+	for (int i =0; i<cantidad_bloques_copiar;i++){
+		if (i<252){
+			indice->estructura.ubicaciones_directos[i]=bloques_nuevos[i];
+			memcpy(indice->datos[i].data, directorio_completo->indices[n_orig].datos[i].data, 1024);
+		}
+		else{
+			indice->indirecto.estructura.ubicacion_directos[i-252]=bloques_nuevos[i];
+			memcpy(indice->indirecto.datos[i-252].data, directorio_completo->indices[n_orig].indirecto.datos[i-252].data, 1024);
+		}
+		utilizar_bloque(directorio_completo, bloques_nuevos[i]);
+	}
+	
+		
+
+	//Guardo cuando ya este validado
+	directorio_completo->estructura.entradas_directorio_estructura[n_dest] = *entrada_dir;
+	directorio_completo->indices[n_dest]=*indice;
+
 	return 0;
 	}
+
+
+
 
 int cz_rm(char* filename){
 	for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
@@ -453,7 +531,6 @@ int cz_rm(char* filename){
 			}
 
 			//validez de la entrada a 0
-
 			directorio_completo->estructura.entradas_directorio_estructura[n_archivo].valid = 0;
 			directorio_completo->estructura.entradas_directorio_estructura[n_archivo].ubicacion_indice = 0;
 
@@ -492,12 +569,12 @@ czFILE* cz_open(char* filename, char mode){
 				n_archivo = i;
 			}
 		}
-		printf("numero archivo %s: %d\n", filename, n_archivo);
+		//tenemos numero archivo
 		if (n_archivo == -1){
 			return NULL;
 		}
 
-		//rertornar czfile archivo indice
+		//rertornar czfilde archivo inice
 		czFILE *ret = calloc(1, sizeof(czFILE));
 		ret->indice = &(directorio_completo->indices[n_archivo]);
 		return ret;
@@ -505,7 +582,6 @@ czFILE* cz_open(char* filename, char mode){
 	}
 	else if (write == mode){
 		int n_archivo = -1;
-		printf("paso 1\n");
 		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 			if ((strcmp(directorio_completo->estructura.entradas_directorio_estructura[i].nombre_archivo, filename) == 0) & 
 				(directorio_completo->estructura.entradas_directorio_estructura[i].valid != 0)){
@@ -516,7 +592,6 @@ czFILE* cz_open(char* filename, char mode){
 		if (n_archivo > -1){
 			return NULL;
 		}
-		printf("paso 2\n");
 		//Buscamos primera entrada libre
 		for (int i=0; i < sizeof(directorio_estructura)/sizeof(entrada_directorio_estructura); i++){
 			if (directorio_completo->estructura.entradas_directorio_estructura[i].valid == 0){
@@ -533,7 +608,6 @@ czFILE* cz_open(char* filename, char mode){
 		if (sizeof(filename)>11){
 			return NULL;
 		}
-		printf("paso 3\n");
 
 
 		//Creamos la entrada
