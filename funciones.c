@@ -7,7 +7,7 @@
 
 FILE* fp;
 directorio *directorio_completo;
-
+char* filename_general;
 
 void showbits(unsigned char x){
     int i; 
@@ -215,10 +215,10 @@ void escribir_string_disco( FILE *fp, int pos, char* str, int size_of_str){
       fwrite(str,1,size_of_str,fp);
 	}
 
-void guardar_todo(FILE* fp, directorio* dir){
+int guardar_todo(FILE* fp, directorio* dir){
 	int pos=0;
 	for (int i=0; i<64; i++){
-		
+		printf("Escribiendolo\n");
 		escribir_char_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].valid);
 		pos += 1;
 		escribir_string_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].nombre_archivo, 11);
@@ -226,24 +226,66 @@ void guardar_todo(FILE* fp, directorio* dir){
 		escribir_int_disco(fp, pos, dir->estructura.entradas_directorio_estructura[i].ubicacion_indice);
 		pos += 4;
 	}
+
+	for (int a=0; a<64; a++){
+		if (directorio_completo->estructura.entradas_directorio_estructura[a].valid>0){
+			int bloque_indice = directorio_completo->estructura.entradas_directorio_estructura[a].ubicacion_indice;
+			int bloque_indice_indirecto = directorio_completo->indices[a].estructura.ubicacion_indirecto;
+
+			//escribimos indice
+			escribir_int_disco(fp, bloque_indice*1024, directorio_completo->indices[a].estructura.size);
+			escribir_int_disco(fp, bloque_indice*1024+4, directorio_completo->indices[a].estructura.timestamp_creacion);
+			escribir_int_disco(fp, bloque_indice*1024+8, (int)time(NULL));
+			int pos = bloque_indice*1024+12;
+			for (int data=0; data<252;data++){
+				escribir_int_disco(fp, pos, directorio_completo->indices[a].estructura.ubicaciones_directos[data]);
+				pos += 4;
+			}
+			escribir_int_disco(fp, pos, directorio_completo->indices[a].estructura.ubicacion_indirecto);
+
+			//escribimos indice indirecto
+			pos = directorio_completo->indices[a].estructura.ubicacion_indirecto*1024;
+			if (directorio_completo->indices[a].estructura.ubicacion_indirecto>0){
+				for (int data=0; data<256;data++){
+					escribir_int_disco(fp, pos, directorio_completo->indices[a].indirecto.estructura.ubicacion_directos[data]);
+					pos += 4;
+			}
+			}
+
+			//escribimos data
+			int num_bloques = bloques_utilizados(&directorio_completo->indices[a]);
+			int bloques_a_guardar[num_bloques];
+			for (int i = 0; i<num_bloques; i++){
+				if (i<252){//reviso en el directo
+					bloques_a_guardar[i] = directorio_completo->indices[a].estructura.ubicaciones_directos[i];
+				}
+				else{//reviso en el indirecto
+					bloques_a_guardar[i] = directorio_completo->indices[a].indirecto.estructura.ubicacion_directos[i-252];
+				}
+			}
+			for (int bloque=0; bloque<num_bloques; bloque++){
+				int pos=bloques_a_guardar[bloque]*1024;
+				if (bloque<252){
+					
+					for (int i=0; i<1024;i++){
+						escribir_char_disco(fp, pos, directorio_completo->indices[a].datos[bloque].data[i]);
+						pos += 1;
+					}
+				}
+				else{
+					for (int i=0; i<1024;i++){
+						escribir_char_disco(fp, pos, directorio_completo->indices[a].indirecto.datos[bloque-252].data[i]);
+						pos +=1;
+					}
+				}
+			}
+
+		}
+	}
+	return 0;
 	}
 
-void borrar_todo(FILE* fp, directorio* dir){
-	int pos=0;
-	for (int i=0; i<64; i++){
-		
-		int cero = 0;
-		escribir_int_disco(fp, pos, cero);
-		pos += 4;
-		escribir_int_disco(fp, pos, cero);
-		pos += 4;
-		escribir_int_disco(fp, pos, cero);
-		pos += 4;
-		escribir_int_disco(fp, pos, cero);
-		pos += 4;
 
-	}
-	}
 
 
 unsigned char modifybitto1(unsigned char *byte, int n_bit){
@@ -261,6 +303,7 @@ unsigned char byte_de_1(unsigned char *byte, int n_bit)
 directorio *generar_directorio(char* filename){
 	directorio *directorio_generado = calloc(1, sizeof(directorio));
 	FILE * fp;
+	filename_general = filename;
 	fp=fopen(filename, "rb");
     fread(directorio_generado, sizeof(*directorio_generado), 1, fp);
     return directorio_generado;
@@ -283,8 +326,6 @@ directorio *inicializar(char* filename){
     	directorio_completo->estructura.entradas_directorio_estructura[i].ubicacion_indice = packInt(1, directorio_completo->estructura.entradas_directorio_estructura[i].ubicacion_indice);
     	    }
 
-    printf("Leyendo directorio\n");
-    printf("Ubicacion indice: %i\n", directorio_completo->estructura.entradas_directorio_estructura[0].ubicacion_indice);
 
 
 	for (int i=0;i<8;i++){
@@ -652,7 +693,9 @@ czFILE* cz_open(char* filename, char mode){
 	}
 
 int cz_close(czFILE* file_desc){
-	borrar_todo(fp, directorio_completo);
-	return 0;
+	fp = fopen(filename_general, "w");
+	int retorno = guardar_todo(fp, directorio_completo);
+	
+	return retorno;
 }
 
